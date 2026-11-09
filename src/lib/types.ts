@@ -365,5 +365,6 @@ export interface Inquiry {
   guest_count: number | null;
   message: string | null;
   status: InquiryStatus;
+  is_read: boolean;
   created_at: string;
 }
