@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useState, useTransition } from "react";
 import {
   Select,
   SelectContent,
@@ -11,6 +11,8 @@ import {
 import { INQUIRY_STATUS_LABELS, type InquiryStatus } from "@/lib/types";
 import { updateInquiryStatus } from "./actions";
 
+const INQUIRY_STATUSES = Object.keys(INQUIRY_STATUS_LABELS) as InquiryStatus[];
+
 export function InquiryStatusSelect({
   id,
   status,
@@ -18,28 +20,41 @@ export function InquiryStatusSelect({
   id: string;
   status: InquiryStatus;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState(0);
+  const [pending, startTransition] = useTransition();
 
   return (
-    <form ref={formRef} action={updateInquiryStatus}>
-      <input type="hidden" name="id" value={id} />
+    <div className="flex flex-col gap-1">
       <Select
+        key={`${status}-${resetKey}`}
         name="status"
         items={INQUIRY_STATUS_LABELS}
         defaultValue={status}
-        onValueChange={() => formRef.current?.requestSubmit()}
+        disabled={pending}
+        onValueChange={(value) => {
+          if (typeof value !== "string" || value === status) return;
+          if (!INQUIRY_STATUSES.includes(value as InquiryStatus)) return;
+          const next = value as InquiryStatus;
+          startTransition(async () => {
+            const message = await updateInquiryStatus(id, next);
+            setError(message);
+            if (message) setResetKey((key) => key + 1);
+          });
+        }}
       >
-        <SelectTrigger className="h-8 w-32">
+        <SelectTrigger className="h-8 w-32" aria-label="Inquiry status">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(INQUIRY_STATUS_LABELS).map(([value, label]) => (
+          {INQUIRY_STATUSES.map((value) => (
             <SelectItem key={value} value={value}>
-              {label}
+              {INQUIRY_STATUS_LABELS[value]}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-    </form>
+      {error ? <p className="max-w-32 text-xs text-destructive">{error}</p> : null}
+    </div>
   );
 }

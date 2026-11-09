@@ -11,9 +11,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Inquiry } from "@/lib/types";
-import { INQUIRY_STATUS_LABELS, INQUIRY_TYPE_LABELS } from "@/lib/types";
+import { INQUIRY_TYPE_LABELS } from "@/lib/types";
 import { InquiryStatusSelect } from "./status-select";
 import { deleteInquiry } from "./actions";
+import { inquiryBadge } from "./inquiry-badge";
 
 // Dates are formatted on the server and passed in so the card matches the table.
 export function InquiryCard({
@@ -21,12 +22,18 @@ export function InquiryCard({
   received,
   eventDate,
   eventTime,
+  pending,
+  onSetRead,
 }: {
   inquiry: Inquiry;
   received: string;
   eventDate: string | null;
   eventTime: string | null;
+  pending: boolean;
+  onSetRead: (isRead: boolean) => void;
 }) {
+  const badge = inquiryBadge(inquiry);
+
   return (
     <Dialog>
       <DialogTrigger
@@ -40,9 +47,7 @@ export function InquiryCard({
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex items-center justify-between gap-2">
             <span className="truncate font-medium">{inquiry.name}</span>
-            <Badge variant={inquiry.status === "new" ? "default" : "secondary"}>
-              {INQUIRY_STATUS_LABELS[inquiry.status]}
-            </Badge>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
             <Badge variant="outline">{INQUIRY_TYPE_LABELS[inquiry.inquiry_type]}</Badge>
@@ -57,6 +62,7 @@ export function InquiryCard({
           <DialogTitle className="pr-8">{inquiry.name}</DialogTitle>
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="outline">{INQUIRY_TYPE_LABELS[inquiry.inquiry_type]}</Badge>
+            <Badge variant={badge.variant}>{badge.label}</Badge>
             <span>Received {received}</span>
           </div>
         </DialogHeader>
@@ -104,14 +110,25 @@ export function InquiryCard({
           <p className="whitespace-pre-wrap break-words">{inquiry.message ?? "—"}</p>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
           <InquiryStatusSelect key={inquiry.status} id={inquiry.id} status={inquiry.status} />
-          <form action={deleteInquiry}>
-            <input type="hidden" name="id" value={inquiry.id} />
-            <Button variant="ghost" size="sm" type="submit" className="text-destructive">
-              Delete
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pending}
+              onClick={() => onSetRead(!inquiry.is_read)}
+            >
+              {inquiry.is_read ? "Mark unread" : "Mark read"}
             </Button>
-          </form>
+            <form action={deleteInquiry}>
+              <input type="hidden" name="id" value={inquiry.id} />
+              <Button variant="ghost" size="sm" type="submit" className="text-destructive">
+                Delete
+              </Button>
+            </form>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
