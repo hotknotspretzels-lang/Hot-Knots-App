@@ -208,14 +208,53 @@ export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
   other: "Other",
 };
 
+export type ContactStatus =
+  | "prospect"
+  | "contacted"
+  | "awaiting_reply"
+  | "in_conversation"
+  | "booked"
+  | "declined"
+  | "bounced";
+
+export const CONTACT_STATUS_LABELS: Record<ContactStatus, string> = {
+  prospect: "Prospect",
+  contacted: "Contacted",
+  awaiting_reply: "Awaiting reply",
+  in_conversation: "In conversation",
+  booked: "Booked",
+  declined: "Declined",
+  bounced: "Bounced / bad contact",
+};
+
+export type ContactMethod = "email" | "phone" | "text" | "either";
+
+export const CONTACT_METHOD_LABELS: Record<ContactMethod, string> = {
+  email: "Email",
+  phone: "Phone",
+  text: "Text",
+  either: "Email or phone",
+};
+
 export interface Contact {
   id: string;
   name: string;
+  title: string | null;
   business_name: string | null;
   contact_type: ContactType;
   email: string | null;
   phone: string | null;
+  secondary_email: string | null;
+  secondary_phone: string | null;
+  website: string | null;
   social_handle: string | null;
+  location: string | null;
+  related_event: string | null;
+  source: string | null;
+  status: ContactStatus | null;
+  last_contacted_on: string | null;
+  next_follow_up_on: string | null;
+  preferred_contact_method: ContactMethod | null;
   notes: string | null;
   created_at: string;
 }

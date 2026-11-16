@@ -1,60 +1,72 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { ContactType } from "@/lib/types";
+import { contactWriteFromForm } from "./contact-payload";
 
-function optionalText(formData: FormData, key: string): string | null {
-  const raw = String(formData.get(key) ?? "").trim();
-  return raw || null;
-}
+const CONTACT_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function createContact(formData: FormData) {
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
-
+async function signedInClient() {
   const supabase = await createClient();
-  await supabase.from("contacts").insert({
-    name,
-    business_name: optionalText(formData, "business_name"),
-    contact_type: (String(formData.get("contact_type") ?? "other") as ContactType),
-    email: optionalText(formData, "email"),
-    phone: optionalText(formData, "phone"),
-    social_handle: optionalText(formData, "social_handle"),
-    notes: optionalText(formData, "notes"),
-  });
-
-  revalidatePath("/contacts");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  return supabase;
 }
 
-export async function updateContact(formData: FormData) {
+function revalidateContactViews(id?: string) {
+  revalidatePath("/contacts");
+  if (id) revalidatePath(`/contacts/${id}`);
+  revalidatePath("/calendar");
+  revalidatePath("/events", "layout");
+}
+
+export async function createContact(formData: FormData): Promise<string | null> {
+  const parsed = contactWriteFromForm(formData);
+  if ("error" in parsed) return parsed.error;
+
+  const supabase = await signedInClient();
+  if (!supabase) return "You need to be signed in.";
+
+  const { error } = await supabase.from("contacts").insert(parsed.data);
+  if (error) return error.message;
+
+  revalidateContactViews();
+  return null;
+}
+
+export async function updateContact(formData: FormData): Promise<string | null> {
   const id = String(formData.get("id") ?? "");
-  const name = String(formData.get("name") ?? "").trim();
-  if (!id || !name) return;
+  if (!CONTACT_ID.test(id)) return "Could not update that contact.";
 
-  const supabase = await createClient();
-  await supabase
-    .from("contacts")
-    .update({
-      name,
-      business_name: optionalText(formData, "business_name"),
-      contact_type: (String(formData.get("contact_type") ?? "other") as ContactType),
-      email: optionalText(formData, "email"),
-      phone: optionalText(formData, "phone"),
-      social_handle: optionalText(formData, "social_handle"),
-      notes: optionalText(formData, "notes"),
-    })
-    .eq("id", id);
+  const parsed = contactWriteFromForm(formData);
+  if ("error" in parsed) return parsed.error;
 
-  revalidatePath("/contacts");
+  const supabase = await signedInClient();
+  if (!supabase) return "You need to be signed in.";
+
+  const { error } = await supabase.from("contacts").update(parsed.data).eq("id", id);
+  if (error) return error.message;
+
+  revalidateContactViews(id);
+  return null;
 }
 
 export async function deleteContact(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!CONTACT_ID.test(id)) return;
 
-  const supabase = await createClient();
-  await supabase.from("contacts").delete().eq("id", id);
+  const supabase = await signedInClient();
+  if (!supabase) return;
 
-  revalidatePath("/contacts");
+  const { error } = await supabase.from("contacts").delete().eq("id", id);
+  if (error) return;
+
+  revalidateContactViews(id);
+  if (formData.get("redirect_to") === "/contacts") {
+    redirect("/contacts");
+  }
 }
