@@ -374,6 +374,28 @@ export interface TodoItem {
   created_at: string;
 }
 
+export interface Checklist {
+  id: string;
+  name: string;
+  base_customer_count: number;
+  expected_customer_count: number | null;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  checklist_id: string;
+  title: string;
+  quantity: number | null;
+  unit: string | null;
+  scales: boolean;
+  is_checked: boolean;
+  checked_at: string | null;
+  sort_order: number;
+  created_at: string;
+}
+
 export type InquiryType = "catering" | "event_booking" | "general";
 
 export const INQUIRY_TYPE_LABELS: Record<InquiryType, string> = {
