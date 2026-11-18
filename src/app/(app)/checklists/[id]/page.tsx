@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeChecklist, normalizeChecklistItem } from "@/lib/checklists";
+import type { Checklist, ChecklistItem } from "@/lib/types";
 import { ChecklistDetail } from "./checklist-detail";
 
 export default async function ChecklistPage({
@@ -17,14 +17,12 @@ export default async function ChecklistPage({
   const [{ data: checklist, error }, { data: items, error: itemsError }] = await Promise.all([
     supabase
       .from("checklists")
-      .select("id, name, base_customer_count, expected_customer_count, sort_order, created_at")
+      .select("id, name, sort_order, created_at")
       .eq("id", id)
       .maybeSingle(),
     supabase
       .from("checklist_items")
-      .select(
-        "id, checklist_id, title, quantity, unit, scales, is_checked, checked_at, sort_order, created_at",
-      )
+      .select("id, checklist_id, title, is_checked, checked_at, sort_order, created_at")
       .eq("checklist_id", id)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true }),
@@ -43,8 +41,8 @@ export default async function ChecklistPage({
 
   return (
     <ChecklistDetail
-      checklist={normalizeChecklist(checklist)}
-      items={(items ?? []).map((item) => normalizeChecklistItem(item))}
+      checklist={checklist as Checklist}
+      items={(items ?? []) as ChecklistItem[]}
       initialMode={mode === "edit" ? "edit" : "run"}
     />
   );

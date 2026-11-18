@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { normalizeChecklist } from "@/lib/checklists";
+import type { Checklist } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChecklistProgress } from "./checklist-progress";
 import { CreateChecklistDialog } from "./create-checklist-dialog";
 import { DeleteChecklistDialog } from "./delete-checklist-dialog";
@@ -12,14 +12,14 @@ export default async function ChecklistsPage() {
   const [{ data: checklists, error }, { data: items, error: itemsError }] = await Promise.all([
     supabase
       .from("checklists")
-      .select("id, name, base_customer_count, expected_customer_count, sort_order, created_at")
+      .select("id, name, sort_order, created_at")
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true }),
     supabase.from("checklist_items").select("checklist_id, is_checked"),
   ]);
 
   const loadError = error ?? itemsError;
-  const list = (checklists ?? []).map((row) => normalizeChecklist(row));
+  const list = (checklists ?? []) as Checklist[];
   const counts = new Map<string, { total: number; done: number }>();
   for (const item of items ?? []) {
     const current = counts.get(item.checklist_id) ?? { total: 0, done: 0 };
@@ -54,17 +54,11 @@ export default async function ChecklistsPage() {
         <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {list.map((checklist) => {
             const progress = counts.get(checklist.id) ?? { total: 0, done: 0 };
-            const headcount =
-              checklist.expected_customer_count != null &&
-              checklist.expected_customer_count !== checklist.base_customer_count
-                ? `Scaled to ${checklist.expected_customer_count.toLocaleString("en-US")} customers`
-                : `Written for ${checklist.base_customer_count.toLocaleString("en-US")} customers`;
 
             return (
               <Card key={checklist.id}>
                 <CardHeader>
                   <CardTitle>{checklist.name}</CardTitle>
-                  <CardDescription>{headcount}</CardDescription>
                   <CardAction>
                     <DeleteChecklistDialog
                       id={checklist.id}
