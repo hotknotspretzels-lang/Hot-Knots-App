@@ -40,7 +40,7 @@ export function ChecklistDetail({
         <p className="text-sm text-muted-foreground">
           {mode === "run"
             ? "Check items off as you go. Uncheck all when the next event starts."
-            : "Rename the list, change the base headcount, and edit items."}
+            : "Add items, rename the list, or change the order."}
         </p>
       </div>
 
@@ -69,12 +69,11 @@ export function ChecklistDetail({
         </button>
       </div>
 
-      <div hidden={mode !== "run"}>
-        <RunList checklist={checklist} items={items} onEdit={() => showMode("edit")} />
-      </div>
-      <div hidden={mode !== "edit"}>
+      {mode === "run" ? (
+        <RunList checklistId={checklist.id} items={items} onEdit={() => showMode("edit")} />
+      ) : (
         <EditList checklist={checklist} items={items} />
-      </div>
+      )}
     </div>
   );
 }

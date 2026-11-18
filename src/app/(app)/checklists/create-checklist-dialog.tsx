@@ -32,7 +32,7 @@ export function CreateChecklistDialog() {
         <DialogHeader>
           <DialogTitle>New checklist</DialogTitle>
           <DialogDescription>
-            Name it for the job, like Event load-out, Opening, Closing, or Prep for 100 customers.
+            Name it for the job, like Event load-out, Opening, or Closing.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -55,23 +55,6 @@ export function CreateChecklistDialog() {
               placeholder="Event load-out"
               autoComplete="off"
             />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="checklist-base">Written for how many customers?</Label>
-            <Input
-              id="checklist-base"
-              name="base_customer_count"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              step={1}
-              defaultValue={100}
-              required
-            />
-            <p className="text-xs text-muted-foreground">
-              Item quantities are the amounts you need for this many people. You can scale them
-              before each event.
-            </p>
           </div>
           {error ? (
             <p role="alert" className="text-sm text-destructive">

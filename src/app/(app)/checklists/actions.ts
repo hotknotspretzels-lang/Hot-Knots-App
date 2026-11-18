@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { isUuid, parsePositiveInt, parseQuantity } from "@/lib/checklists";
+import { isUuid, parseChecklistName, parseItemTitle } from "@/lib/checklists";
 
 async function signedInClient() {
   const supabase = await createClient();
@@ -24,53 +24,9 @@ function readId(formData: FormData, key: string): string | null {
   return isUuid(id) ? id : null;
 }
 
-function parseChecklistName(raw: unknown): string | null {
-  const name = String(raw ?? "")
-    .trim()
-    .replace(/\s+/g, " ");
-  if (!name || name.length > 120) return null;
-  return name;
-}
-
-function itemFromForm(
-  formData: FormData,
-): { error: string } | { data: { title: string; quantity: number | null; unit: string | null; scales: boolean } } {
-  const title = String(formData.get("title") ?? "")
-    .trim()
-    .replace(/\s+/g, " ");
-  if (!title) return { error: "Add a name for this item." };
-  if (title.length > 200) return { error: "Item name needs to be 200 characters or less." };
-
-  const quantityRaw = String(formData.get("quantity") ?? "");
-  const unit = String(formData.get("unit") ?? "")
-    .trim()
-    .replace(/\s+/g, " ");
-  if (unit.length > 40) return { error: "Unit needs to be 40 characters or less." };
-
-  if (!quantityRaw.trim()) {
-    return { data: { title, quantity: null, unit: null, scales: true } };
-  }
-
-  const quantity = parseQuantity(quantityRaw);
-  if (quantity == null) return { error: "Quantity needs to be a number greater than zero." };
-
-  return {
-    data: {
-      title,
-      quantity,
-      unit: unit || null,
-      scales: formData.get("scales") === "true",
-    },
-  };
-}
-
 export async function createChecklist(formData: FormData): Promise<string | null> {
   const name = parseChecklistName(formData.get("name"));
   if (!name) return "Give the checklist a name, up to 120 characters.";
-
-  const baseRaw = String(formData.get("base_customer_count") ?? "").trim();
-  const base = baseRaw === "" ? 100 : parsePositiveInt(baseRaw);
-  if (base == null) return "Base customer count needs to be a whole number, 1 or more.";
 
   const supabase = await signedInClient();
   if (!supabase) return "You need to be signed in.";
@@ -86,7 +42,6 @@ export async function createChecklist(formData: FormData): Promise<string | null
     .from("checklists")
     .insert({
       name,
-      base_customer_count: base,
       sort_order: (last?.sort_order ?? -1) + 1,
     })
     .select("id")
@@ -105,40 +60,10 @@ export async function updateChecklist(formData: FormData): Promise<string | null
   const name = parseChecklistName(formData.get("name"));
   if (!name) return "Give the checklist a name, up to 120 characters.";
 
-  const base = parsePositiveInt(String(formData.get("base_customer_count") ?? ""));
-  if (base == null) return "Base customer count needs to be a whole number, 1 or more.";
-
   const supabase = await signedInClient();
   if (!supabase) return "You need to be signed in.";
 
-  const { error } = await supabase
-    .from("checklists")
-    .update({ name, base_customer_count: base })
-    .eq("id", id);
-  if (error) return error.message;
-
-  revalidateChecklist(id);
-  return null;
-}
-
-export async function setChecklistExpectedCount(formData: FormData): Promise<string | null> {
-  const id = readId(formData, "id");
-  if (!id) return "Could not update the customer count.";
-
-  const raw = String(formData.get("expected_customer_count") ?? "").trim();
-  let expected: number | null = null;
-  if (raw !== "") {
-    expected = parsePositiveInt(raw);
-    if (expected == null) return "Expected customers needs to be a whole number, 1 or more.";
-  }
-
-  const supabase = await signedInClient();
-  if (!supabase) return "You need to be signed in.";
-
-  const { error } = await supabase
-    .from("checklists")
-    .update({ expected_customer_count: expected })
-    .eq("id", id);
+  const { error } = await supabase.from("checklists").update({ name }).eq("id", id);
   if (error) return error.message;
 
   revalidateChecklist(id);
@@ -164,8 +89,8 @@ export async function createChecklistItem(formData: FormData): Promise<string | 
   const checklistId = readId(formData, "checklist_id");
   if (!checklistId) return "Could not add that item.";
 
-  const parsed = itemFromForm(formData);
-  if ("error" in parsed) return parsed.error;
+  const title = parseItemTitle(formData.get("title"));
+  if (!title) return "Add a name for this item.";
 
   const supabase = await signedInClient();
   if (!supabase) return "You need to be signed in.";
@@ -180,7 +105,7 @@ export async function createChecklistItem(formData: FormData): Promise<string | 
 
   const { error } = await supabase.from("checklist_items").insert({
     checklist_id: checklistId,
-    ...parsed.data,
+    title,
     sort_order: (last?.sort_order ?? -1) + 1,
   });
   if (error) return error.message;
@@ -194,15 +119,15 @@ export async function updateChecklistItem(formData: FormData): Promise<string | 
   const checklistId = readId(formData, "checklist_id");
   if (!id || !checklistId) return "Could not update that item.";
 
-  const parsed = itemFromForm(formData);
-  if ("error" in parsed) return parsed.error;
+  const title = parseItemTitle(formData.get("title"));
+  if (!title) return "Add a name for this item.";
 
   const supabase = await signedInClient();
   if (!supabase) return "You need to be signed in.";
 
   const { error } = await supabase
     .from("checklist_items")
-    .update(parsed.data)
+    .update({ title })
     .eq("id", id)
     .eq("checklist_id", checklistId);
   if (error) return error.message;
